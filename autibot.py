@@ -6,16 +6,30 @@ from discord.ext import commands
 from pprint import pprint
 from typing import List
 
+# TODO ROLLIMÄÄRÄ PITÄS TALLENTAA MYÖS LAST_PLAYERSIIN JA REMATCH FUNKTION KÄYTTÄÄ SITÄ
+# DELETE MESSAGES THAT CALLED BOT
+
+BOT_TOKEN = "NjQ3ODgyMzM0NzA3Nzc3NTM2.XdmMQw.37fQcqubuF_8Z4Ruq9MkISnb-nY"
+# Files
+ALL_CHAMPS_FILE = "all_champs.txt"
+DATABASE_FILE = "database.txt"
+LAST_PLAYERS_FILE = "last_players.txt"
+# Other constants
 ARPE_EMOJI_URLS = ["https://cdn.discordapp.com/emojis/397083734731653123.png",
                    "https://cdn.discordapp.com/emojis/387365033216049165.png",
                    "https://cdn.discordapp.com/emojis/613082979513663489.png",
                    "https://cdn.discordapp.com/emojis/729836547343384596.png",
                    "https://cdn.discordapp.com/emojis/533366058933813259.png"]
 ARPE_LAUSAHDUKSET = ["Joo swainilla eniten damagee"]
-BOT_TOKEN = "NjQ3ODgyMzM0NzA3Nzc3NTM2.XdmMQw.37fQcqubuF_8Z4Ruq9MkISnb-nY"
-ALL_CHAMPS_FILE = "all_champs.txt"
-DATABASE_FILE = "database.txt"
-LAST_PLAYERS_FILE = "last_players.txt"
+HELP_STRINGS = {"aram": f"""Makes aram teams with given (2 or more) players
+                            **Usage:** +aram [rolls] player...""",
+                "rematch": f"""Makes new aram game with same players
+                               **Usage:** +rematch""",
+                "roll": f"""Roll champions for given player(s)
+                            **Usage:** +roll [rolls] [player...]"""
+                }
+REMATCH_ALIASES = ["paraskolmesta", "parasviiestä", "parasseittemästä", "paraskolmestatoista"]
+
 client = discord.Client()
 bot = commands.Bot(command_prefix='+')
 
@@ -29,55 +43,96 @@ def init_all_champs_list():
 
 ALL_CHAMPS = init_all_champs_list()
 
+@bot.command(name='aramhelp')
+async def help(ctx):
+    """
+    Sends message with info how to use this bot
+    """
+    help_description = f"""[parameter] is optional parameter
+                           parameter... means multiple parameters can be given"""
+    
+    embed = discord.Embed(title="Hjälp", 
+                          colour=discord.Colour(0x42DDE5),
+                          description=help_description)
+    for key in HELP_STRINGS:
+        embed.add_field(name=key, value= HELP_STRINGS[key], inline=False)
+    await ctx.send(embed=embed, delete_after=300)
+
 @bot.command(name='aram')
-async def make_aram_teams(ctx):
+async def make_aram_teams(ctx, *args):
     """
     Makes aram teams from given discord user mentions and prints them to channel
     :param ctx: context of discord command given
+    :param args: first argument is champions rolls
     """
-    players = ctx.message.content.split()[1:]
+    rolls = 3
+    players = []
+    
+    if len(args) > 1:
+        # if first argument is digit it defines roll amount, otherwise is player name
+        if args[0].isdigit():
+            rolls = int(args[0])
+        else:
+            players.append(args[0])
+            
+        for player in args[1:]:
+            players.append(player)
+    else:
+        await ctx.send("Jossei osaa nii kannattaa lukee ohjeet (+aramhelp)", delete_after=300)
+    
     # TODO if random teams feature is implemented, player list must be randomized before this
     # so that save teams will correctly save the randomized team.
     save_teams(players)
-    embed = make_embed(players)
-    await ctx.send(embed=embed)
+    embed = make_embed(players, rolls)
+    await ctx.send(embed=embed, delete_after=300)
  
-@bot.command(name='rematch')
+@bot.command(name='rematch', aliases=REMATCH_ALIASES)
 async def rematch(ctx):
     """
     Makes aram game with new champs but same teams as last game and prints them to channel
     :param ctx: context of discord command given
     """
+    rolls = 3
     # Get player list from last game
     players = get_last_game_players()
-    embed = make_embed(players)
-    await ctx.send(embed=embed)
+    embed = make_embed(players, rolls)
+    await ctx.send(embed=embed, delete_after=300)
     
-@bot.command(name='arpe')
-async def arpe(ctx):
-    embed = discord.Embed(title="4rpe", 
-                          description=random.choice(ARPE_LAUSAHDUKSET),
-                          colour=discord.Colour(0x42DDE5))
-    embed.set_image(url=random.choice(ARPE_EMOJI_URLS))
-    await ctx.send(embed=embed)
+@bot.command(name='reroll', aliases=['roll'])
+async def reroll(ctx, *args):
+    """
+    Rolls ne champions for given player or command caller if no parameters given
+    :param args: players to roll champs for. NOTE! If first argument is digit,
+                 thats amount of champs rolled.
+    """
+    rolls = 3
+    player_list = []
     
-@bot.command(name='teemo')
-async def teemo(ctx):
-    database = open(DATABASE_FILE, "r")
-    lines = database.readlines()
-    amt = 0
-    for line in lines:
-        if "teemo" in line:
-            amt = int(line.split(';')[1])
-    await ctx.send(f"Teemo rollattu {amt} kertaa")
+    if args:
+        # if first argument is digit it defines roll amount, otherwise is player name
+        if args[0].isdigit():
+            rolls = int(args[0])
+        else:
+            player_list.append(args[0])
+            
+        if len(args) > 1:
+            for player in args[1:]:
+                player_list.append(player)
+            
+    # If no players given as argument, player is message sender
+    if len(player_list) == 0:
+        player_list = [ctx.message.author.name]
     
-def make_embed(player_list: List[str]):
+    embed = make_reroll_embed(player_list, rolls)
+    await ctx.send(embed=embed, delete_after=300)
+    
+def make_embed(player_list: List[str], rolls):
     """
     Makes discord embed message that shows teams and rolled champs.
     :param champ_dict: List that contains player names
     :return: discord embed that contains formatting for sending a message with aram teams
     """
-    champ_dict = roll_player_champs(player_list)
+    champ_dict = roll_player_champs(player_list, rolls)
     player_names = list(champ_dict.keys())
     player_champs = list(champ_dict.values())
     player_amount = len(champ_dict)
@@ -105,6 +160,21 @@ def make_embed(player_list: List[str]):
     embed.add_field(name="\u200b", value=team_2_champs_text, inline=True)
     
     return embed
+    
+def make_reroll_embed(players: str, rolls):
+    """
+    Makes discord embed message that shows new rolled champs for player
+    :param player: name of player who is rolling
+    """
+    champ_dict = roll_player_champs(players, rolls)
+    player_names = list(champ_dict.keys())
+    player_champs = list(champ_dict.values())
+    
+    embed = discord.Embed(title="Reroll",  colour=discord.Colour(0x42DDE5))
+    for player in player_names:
+        player_champs = ', '.join(champ_dict[player])
+        embed.add_field(name=player, value=player_champs, inline=False)
+    return embed
 
 def get_last_game_players():
     """
@@ -115,13 +185,12 @@ def get_last_game_players():
     last_players_file.close()
     return last_players
 
-def roll_player_champs(players: List[str]):
+def roll_player_champs(players: List[str], rolls=3):
     """
     Get dictionary of all players and list of champions rolled for them.
     :param players: list of players names
     :return: {player_name: [champions]} dictionary
     """
-    rerolls = 2
     player_champ_picks = {}  # {nepa: [ahri, amumu, azir], saska: [zoe, zyra, zed]}
     all_rolled_champs = []
     
@@ -129,7 +198,7 @@ def roll_player_champs(players: List[str]):
     for p in players:
         rolled_champs = []
         i = 0
-        while (i < rerolls + 1):
+        while (i < rolls):
             champ = random.choice(ALL_CHAMPS)
             if (champ not in all_rolled_champs):
                 rolled_champs.append(champ)
@@ -152,7 +221,25 @@ def save_teams(players: List[str]):
     last_players_file.write(';'.join(players))
     last_players_file.close()
     
-####
+####  USELESS COMMANDS ####
+    
+@bot.command(name='arpe')
+async def arpe(ctx):
+    embed = discord.Embed(title="4rpe", 
+                          description=random.choice(ARPE_LAUSAHDUKSET),
+                          colour=discord.Colour(0x42DDE5))
+    embed.set_image(url=random.choice(ARPE_EMOJI_URLS))
+    await ctx.send(embed=embed)
+    
+@bot.command(name='teemo')
+async def teemo(ctx):
+    database = open(DATABASE_FILE, "r")
+    lines = database.readlines()
+    amt = 0
+    for line in lines:
+        if "teemo" in line:
+            amt = int(line.split(';')[1])
+    await ctx.send(f"Teemo rollattu {amt} kertaa")
 
 def add_to_teemo_counter():
     database = open(DATABASE_FILE, "r")
