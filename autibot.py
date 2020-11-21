@@ -58,7 +58,8 @@ def init_bot_token():
 ALL_CHAMPS = init_all_champs_list()
 ALL_CHAMPS_LOWER = [x.lower() for x in ALL_CHAMPS]
 BOT_TOKEN = init_bot_token()
-print(BOT_TOKEN)
+
+open(PLAYER_CHAMP_DB_FILE, "w+") # create player champ db if doesn't exist
 
 @bot.command(name='addchampions', aliases=['addchamps', 'addchamp', 'addchampion'])
 async def add_champs(ctx, player, *champs):
@@ -217,6 +218,10 @@ async def reset_champions(ctx, player):
         await ctx.send(f"Champions list reset for player {player}")
     else:
         await ctx.send(f"No player with name {player} found in database. Use '+addchamps player_name champ...' to add new player")
+
+@bot.command(name='source', aliases=['github', 'code'])
+async def source_code(ctx):
+    await ctx.send(f"moi")
 
 def database_line(aliases, champs):
     """
