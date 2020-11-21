@@ -6,13 +6,15 @@ from discord.ext import commands
 from pprint import pprint
 from typing import List
 
+# TODO VÄHÄN PAREMMAT DATABASET VOIS OLLA JO KIVA TÄSSÄ VAIHEESSA EIKÄ TÄMMÖSTÄ .TXT SÄÄTÖÄ
 # TODO ROLLIMÄÄRÄ PITÄS TALLENTAA MYÖS LAST_PLAYERSIIN JA REMATCH FUNKTION KÄYTTÄÄ SITÄ
-# DELETE MESSAGES THAT CALLED BOT
+# TODO TEEMO DATABASE -FILELLA PITÄS OLLA PAREMPI NIMI
 
-BOT_TOKEN = "NjQ3ODgyMzM0NzA3Nzc3NTM2.XdmMQw.37fQcqubuF_8Z4Ruq9MkISnb-nY"
-# Files
+#Files
+BOT_TOKEN_FILE = "bot_token.txt"
 ALL_CHAMPS_FILE = "all_champs.txt"
-DATABASE_FILE = "database.txt"
+TEEMO_DB_FILE = "database.txt"
+PLAYER_CHAMP_DB_FILE = "player_champ_database.txt"
 LAST_PLAYERS_FILE = "last_players.txt"
 # Other constants
 ARPE_EMOJI_URLS = ["https://cdn.discordapp.com/emojis/397083734731653123.png",
@@ -20,7 +22,13 @@ ARPE_EMOJI_URLS = ["https://cdn.discordapp.com/emojis/397083734731653123.png",
                    "https://cdn.discordapp.com/emojis/613082979513663489.png",
                    "https://cdn.discordapp.com/emojis/729836547343384596.png",
                    "https://cdn.discordapp.com/emojis/533366058933813259.png"]
-ARPE_LAUSAHDUKSET = ["Joo swainilla eniten damagee"]
+ARPE_LAUSAHDUKSET = ["Joo swainilla eniten damagee",
+                     "Tuijottiko se kummallakin korvalla?",
+                     "Haluutko kuulla miltä mutakakku maistuu?",
+                     "Saska, vitun pönttöpää saatana",
+                     "Identivoidun naiseksi",
+                     "Eiks koirat raksuta",
+                     "Parempi raita pöntössä kun kaks housuissa"]
 HELP_STRINGS = {"aram": f"""Makes aram teams with given (2 or more) players
                             **Usage:** +aram [rolls] player...""",
                 "rematch": f"""Makes new aram game with same players
@@ -35,28 +43,60 @@ bot = commands.Bot(command_prefix='+')
 
 def init_all_champs_list():
     """
-    Return a list of all champions that is stored in all_champs.txt file
-    # TODO add new champs to list
+    Return a list of all champions that is stored in all_champs .txt file
     """
     with open(ALL_CHAMPS_FILE, 'r') as f:
         return [line.strip() for line in f]
 
-ALL_CHAMPS = init_all_champs_list()
+def init_bot_token():
+    """
+    Return bot token stored in .txt file
+    """
+    with open(BOT_TOKEN_FILE, 'r') as f:
+        return [line.strip() for line in f][0]
 
-@bot.command(name='aramhelp')
-async def help(ctx):
+ALL_CHAMPS = init_all_champs_list()
+ALL_CHAMPS_LOWER = [x.lower() for x in ALL_CHAMPS]
+BOT_TOKEN = init_bot_token()
+print(BOT_TOKEN)
+
+@bot.command(name='addchampions', aliases=['addchamps', 'addchamp', 'addchampion'])
+async def add_champs(ctx, player, *champs):
     """
-    Sends message with info how to use this bot
+    Adds champions for a player.
+    If 'all' parameter is used after player name, adds all champions except the ones given after it.
+    :param player: name of player
+    :param champs: champions to add for the player, champs[0] is checked for all-parameter
     """
-    help_description = f"""[parameter] is optional parameter
-                           parameter... means multiple parameters can be given"""
+    # List to store alias names for parameter word that must be given when adding all champions
+    all_champs_param_aliases = ['all', 'kaikki']
+    # Autism check: if more champions given than exist, do nothing
+    if len(champs) > len(ALL_CHAMPS):
+        await ctx.send(f"Mitä vittua nyt taas, ei noin montaa champpia oo ees olemassa")
+
+    champs = [champ.lower() for champ in champs]  # change list to lower case
+
+    # If all-parameter is given, edit champs list to contain all EXCEPT the given champs
+    if champs[0] in all_champs_param_aliases:
+        print("annettiin all")
+        champs = sorted(list(set(ALL_CHAMPS_LOWER) - set(champs)))
+    else:
+        champs = [champ for champ in champs if champ in ALL_CHAMPS_LOWER]  # remove invalid champ names
+        champs = sorted(list(set(champs)))  # remove duplicate champ names
+
+    set_player_champions(player, champs)
+
+    await ctx.send(f"Added {str(champs)} for player {player}")
     
-    embed = discord.Embed(title="Hjälp", 
-                          colour=discord.Colour(0x42DDE5),
-                          description=help_description)
-    for key in HELP_STRINGS:
-        embed.add_field(name=key, value= HELP_STRINGS[key], inline=False)
-    await ctx.send(embed=embed, delete_after=300)
+@bot.command(name='addaliases', aliases=['addalias'])
+async def add_aliases(ctx, player, *aliases):
+    """
+    Add aliases for a player.
+    :param player: existing name of the player
+    :param aliases: aliases to add for the player
+    """
+    set_player_aliases(player, aliases)
+    await ctx.send(f"Added aliases {str(aliases)} for {player}")
 
 @bot.command(name='aram')
 async def make_aram_teams(ctx, *args):
@@ -67,25 +107,40 @@ async def make_aram_teams(ctx, *args):
     """
     rolls = 3
     players = []
-    
+
     if len(args) > 1:
         # if first argument is digit it defines roll amount, otherwise is player name
         if args[0].isdigit():
             rolls = int(args[0])
         else:
             players.append(args[0])
-            
+
         for player in args[1:]:
             players.append(player)
     else:
-        await ctx.send("Jossei osaa nii kannattaa lukee ohjeet (+aramhelp)", delete_after=300)
-    
+        await ctx.send("Jossei osaa nii kannattaa lukee ohjeet (+aramhelp)")
+
     # TODO if random teams feature is implemented, player list must be randomized before this
     # so that save teams will correctly save the randomized team.
     save_teams(players)
     embed = make_embed(players, rolls)
-    await ctx.send(embed=embed, delete_after=300)
- 
+    await ctx.send(embed=embed)
+
+@bot.command(name='aramhelp')
+async def help(ctx):
+    """
+    Sends message with info how to use this bot
+    """
+    help_description = f"""[parameter] is optional parameter
+                           parameter... means multiple parameters can be given"""
+
+    embed = discord.Embed(title="Hjälp",
+                          colour=discord.Colour(0x42DDE5),
+                          description=help_description)
+    for key in HELP_STRINGS:
+        embed.add_field(name=key, value= HELP_STRINGS[key], inline=False)
+    await ctx.send(embed=embed)
+
 @bot.command(name='rematch', aliases=REMATCH_ALIASES)
 async def rematch(ctx):
     """
@@ -96,85 +151,81 @@ async def rematch(ctx):
     # Get player list from last game
     players = get_last_game_players()
     embed = make_embed(players, rolls)
-    await ctx.send(embed=embed, delete_after=300)
-    
+    await ctx.send(embed=embed)
+
 @bot.command(name='reroll', aliases=['roll'])
 async def reroll(ctx, *args):
     """
-    Rolls ne champions for given player or command caller if no parameters given
+    Rolls new champions for given player or command caller if no parameters given
     :param args: players to roll champs for. NOTE! If first argument is digit,
                  thats amount of champs rolled.
     """
     rolls = 3
     player_list = []
-    
+
     if args:
         # if first argument is digit it defines roll amount, otherwise is player name
         if args[0].isdigit():
             rolls = int(args[0])
         else:
             player_list.append(args[0])
-            
+
         if len(args) > 1:
             for player in args[1:]:
                 player_list.append(player)
-            
+
     # If no players given as argument, player is message sender
     if len(player_list) == 0:
         player_list = [ctx.message.author.name]
-    
+
     embed = make_reroll_embed(player_list, rolls)
-    await ctx.send(embed=embed, delete_after=300)
-    
-def make_embed(player_list: List[str], rolls):
+    await ctx.send(embed=embed)
+
+@bot.command(name='champions', aliases=['champs'])
+async def print_champs(ctx, player):
     """
-    Makes discord embed message that shows teams and rolled champs.
-    :param champ_dict: List that contains player names
-    :return: discord embed that contains formatting for sending a message with aram teams
+    Prints a list of player's champions.
+    :param player: name of player
     """
-    champ_dict = roll_player_champs(player_list, rolls)
-    player_names = list(champ_dict.keys())
-    player_champs = list(champ_dict.values())
-    player_amount = len(champ_dict)
-    
-    team_1_players_text = ""
-    team_1_champs_text = ""
-    team_2_players_text = ""
-    team_2_champs_text = ""
-    
-    # Set player and champions texts
-    for i in range(player_amount):
-        if i*2 < player_amount:  # Add first half of players to team 1
-            team_1_players_text += f"**{player_names[i]}** \n"
-            team_1_champs_text += f"{', '.join(player_champs[i])} \n"
-        else:
-            team_2_players_text += f"**{player_names[i]}** \n"
-            team_2_champs_text += f"{', '.join(player_champs[i])} \n"
-    
-    # Create embed message to send to discord
-    embed = discord.Embed(title="Aaram",  colour=discord.Colour(0x42DDE5))
-    embed.add_field(name="Team 1", value=team_1_players_text, inline=True)
-    embed.add_field(name="\u200b", value=team_1_champs_text, inline=True)
-    embed.add_field(name="\u200b", value="\u200b", inline=False) # Empty field to separate teams
-    embed.add_field(name="Team 2", value=team_2_players_text, inline=True)
-    embed.add_field(name="\u200b", value=team_2_champs_text, inline=True)
-    
-    return embed
-    
-def make_reroll_embed(players: str, rolls):
+    try:
+        player_aliases = get_player_aliases(player)
+        player_champs = sorted([champ.capitalize() for champ in get_player_champions(player)])
+        await ctx.send(f"{player_aliases[0]} ({(player_aliases[1:])}) champions ({len(player_champs)}): {str(player_champs)}")
+    except ValueError:
+        await ctx.send("No player with that name exists in database")
+
+@bot.command(name='resetchampions', aliases=['resetchamps'])
+async def reset_champions(ctx, player):
     """
-    Makes discord embed message that shows new rolled champs for player
-    :param player: name of player who is rolling
+    Reset champions stored for a player in database.
+    :param player: name or alias of existing player in database
     """
-    champ_dict = roll_player_champs(players, rolls)
-    player_names = list(champ_dict.keys())
-    player_champs = list(champ_dict.values())
-    
-    embed = discord.Embed(title="Reroll",  colour=discord.Colour(0x42DDE5))
-    for player in player_names:
-        player_champs = ', '.join(champ_dict[player])
-        embed.add_field(name=player, value=player_champs, inline=False)
-    return embed
+    player_found_in_database = False
+    player_name = player.lower()
+    player_champ_db = open(PLAYER_CHAMP_DB_FILE, "r")
+    lines = player_champ_db.readlines()
+    for i in range(len(lines)):
+        player_aliases = lines[i].split(';')[0].split(',')
+        if player_name in player_aliases:
+            player_found_in_database = True
+            lines[i] = ','.join(player_aliases) + ";" + "\n"
+            new_db_line = lines[i]
+
+    database = open(PLAYER_CHAMP_DB_FILE, "w")
+    database.writelines(lines)
+    if player_found_in_database:
+        await ctx.send(f"Champions list reset for player {player}")
+    else:
+        await ctx.send(f"No player with name {player} found in database. Use '+addchamps player_name champ...' to add new player")
+
+def database_line(aliases, champs):
+    """
+    Get correctly formatted str to add as line to player champion database
+    :param aliases: list of aliases for player
+    :param champs: list of champions for player
+    :return: formatted str
+    """
+    return ','.join(aliases) + ";" + ','.join(champs) + "\n"
 
 def get_last_game_players():
     """
@@ -185,6 +236,88 @@ def get_last_game_players():
     last_players_file.close()
     return last_players
 
+def get_player_aliases(player):
+    """
+    Get aliases for given player from database.
+    :param player: player name
+    :return: list of aliases including the given player name
+    """
+    player_name = player.lower()
+    player_champ_db = open(PLAYER_CHAMP_DB_FILE, "r")
+    lines = player_champ_db.readlines()
+    for i in range(len(lines)):
+        player_aliases = lines[i].split(';')[0].split(',')
+        if player_name in player_aliases:
+            return player_aliases
+    raise ValueError("Player not found in database")
+
+def get_player_champions(player):
+    """
+    Get list of player champions from database
+    :param player: player name
+    :return: list of player champions
+    """
+    player_name = player.lower()
+    player_champ_db = open(PLAYER_CHAMP_DB_FILE, "r")
+    lines = player_champ_db.readlines()
+    for line in lines:
+        player_aliases = line.split(';')[0].split(',')
+        if player_name in player_aliases:
+            player_champs = line.rstrip().split(';')[1].split(',')
+            player_champs = [champ for champ in player_champs if champ]  # remove empty items
+            return player_champs
+    raise ValueError("Player not found in database")
+
+def make_embed(player_list: List[str], rolls):
+    """
+    Makes discord embed message that shows teams and rolled champs.
+    :param champ_dict: List that contains player names
+    :return: discord embed that contains formatting for sending a message with aram teams
+    """
+    champ_dict = roll_player_champs(player_list, rolls)
+    player_names = list(champ_dict.keys())
+    player_champs = list(champ_dict.values())
+    player_amount = len(champ_dict)
+
+    team_1_players_text = ""
+    team_1_champs_text = ""
+    team_2_players_text = ""
+    team_2_champs_text = ""
+
+    # Set player and champions texts
+    for i in range(player_amount):
+        if i*2 < player_amount:  # Add first half of players to team 1
+            team_1_players_text += f"**{player_names[i]}** \n"
+            team_1_champs_text += f"{', '.join(player_champs[i])} \n"
+        else:
+            team_2_players_text += f"**{player_names[i]}** \n"
+            team_2_champs_text += f"{', '.join(player_champs[i])} \n"
+
+    # Create embed message to send to discord
+    embed = discord.Embed(title="Aaram",  colour=discord.Colour(0x42DDE5))
+    embed.add_field(name="Team 1", value=team_1_players_text, inline=True)
+    embed.add_field(name="\u200b", value=team_1_champs_text, inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=False) # Empty field to separate teams
+    embed.add_field(name="Team 2", value=team_2_players_text, inline=True)
+    embed.add_field(name="\u200b", value=team_2_champs_text, inline=True)
+
+    return embed
+
+def make_reroll_embed(players: str, rolls):
+    """
+    Makes discord embed message that shows new rolled champs for player
+    :param player: name of player who is rolling
+    """
+    champ_dict = roll_player_champs(players, rolls)
+    player_names = list(champ_dict.keys())
+    player_champs = list(champ_dict.values())
+
+    embed = discord.Embed(title="Reroll",  colour=discord.Colour(0x42DDE5))
+    for player in player_names:
+        player_champs = ', '.join(champ_dict[player])
+        embed.add_field(name=player, value=player_champs, inline=False)
+    return embed
+
 def roll_player_champs(players: List[str], rolls=3):
     """
     Get dictionary of all players and list of champions rolled for them.
@@ -193,7 +326,7 @@ def roll_player_champs(players: List[str], rolls=3):
     """
     player_champ_picks = {}  # {nepa: [ahri, amumu, azir], saska: [zoe, zyra, zed]}
     all_rolled_champs = []
-    
+
     # Roll a champion for everyone and add to dictionary
     for p in players:
         rolled_champs = []
@@ -205,35 +338,82 @@ def roll_player_champs(players: List[str], rolls=3):
                 all_rolled_champs.append(champ)
                 i += 1
         player_champ_picks[p] = sorted(rolled_champs)
-    
+
     if "Teemo" in rolled_champs:
         add_to_teemo_counter()
-    
+
     return player_champ_picks
 
 def save_teams(players: List[str]):
     """
     Saves player list to text file so new champs can be rolled to same teams
     without giving all players as parameters again.
-    File is formatted as: player1;player2,player3
+    File is formatted as: player1;player2;player3
     """
     last_players_file = open(LAST_PLAYERS_FILE, "w+")
     last_players_file.write(';'.join(players))
     last_players_file.close()
+
+def set_player_aliases(player, aliases):
+    """
+    Sets list of new aliases including given player name for player in database.
+    Creates ne player to database if given name does not exist
+    :param player: aliases to set
+    """
+    player_name = player.lower()
+    player_champ_db = open(PLAYER_CHAMP_DB_FILE, "r")
+    lines = player_champ_db.readlines()
+    try:
+        new_aliases = get_player_aliases(player_name)
+        new_aliases.extend(aliases)
+        for i in range(len(lines)):
+            player_aliases = lines[i].split(';')[0].split(',')
+            if player_name in player_aliases:
+                player_champs = get_player_champions(player_name)
+                lines[i] = database_line(new_aliases, player_champs)
+    except ValueError:
+        lines.append(database_line([player] + list(aliases), ""))
+
+    database = open(PLAYER_CHAMP_DB_FILE, "w")
+    database.writelines(lines)
+
+def set_player_champions(player, champs):
+    """
+    Sets list of champions for player in database
+    :param player: player name
+    :param champions: list of champions to set
+    """
+    player_name = player.lower()
+    player_champ_db = open(PLAYER_CHAMP_DB_FILE, "r")
+    lines = player_champ_db.readlines()
+    try:
+        new_champs = get_player_champions(player_name)
+        new_champs.extend(champs)
+        # Check database for player name and add new champions if found
+        for i in range(len(lines)):
+            player_aliases = lines[i].split(';')[0].split(',')
+            if player_name in player_aliases:
+                lines[i] = database_line(player_aliases, new_champs)
+        # Add new line to database if player name was not found in database
+    except ValueError:
+        lines.append(database_line([player], champs))
+
+    database = open(PLAYER_CHAMP_DB_FILE, "w")
+    database.writelines(lines)
     
 ####  USELESS COMMANDS ####
     
-@bot.command(name='arpe')
+@bot.command(name='arpe', aliases=['pepega', 'fourpette', 'itsyourtime', 'swain'])
 async def arpe(ctx):
     embed = discord.Embed(title="4rpe", 
                           description=random.choice(ARPE_LAUSAHDUKSET),
                           colour=discord.Colour(0x42DDE5))
     embed.set_image(url=random.choice(ARPE_EMOJI_URLS))
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, delete_after=10)
     
 @bot.command(name='teemo')
 async def teemo(ctx):
-    database = open(DATABASE_FILE, "r")
+    database = open(TEEMO_DB_FILE, "r")
     lines = database.readlines()
     amt = 0
     for line in lines:
@@ -242,7 +422,7 @@ async def teemo(ctx):
     await ctx.send(f"Teemo rollattu {amt} kertaa")
 
 def add_to_teemo_counter():
-    database = open(DATABASE_FILE, "r")
+    database = open(TEEMO_DB_FILE, "r")
     lines = database.readlines()
     for i in range(len(lines)):
         if "teemo" in lines[i]:
@@ -250,7 +430,7 @@ def add_to_teemo_counter():
             amt += 1
             lines[i] = f"teemo;{amt}"
 
-    database = open(DATABASE_FILE, "w")
+    database = open(TEEMO_DB_FILE, "w")
     database.writelines(lines)
 
 bot.run(BOT_TOKEN)
