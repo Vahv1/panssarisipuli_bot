@@ -36,6 +36,7 @@ HELP_STRINGS = {"aram": f"""Makes aram teams with given (2 or more) players
                 "roll": f"""Roll champions for given player(s)
                             **Usage:** +roll [rolls] [player...]"""
                 }
+GITHUB_URL = "https://github.com/Vahv1/panssarisipuli_bot"
 REMATCH_ALIASES = ["paraskolmesta", "parasviiestä", "parasseittemästä", "paraskolmestatoista"]
 
 client = discord.Client()
@@ -64,7 +65,7 @@ open(PLAYER_CHAMP_DB_FILE, "w+") # create player champ db if doesn't exist
 @bot.command(name='addchampions', aliases=['addchamps', 'addchamp', 'addchampion'])
 async def add_champs(ctx, player, *champs):
     """
-    Adds champions for a player.
+    Add champions for a player.
     If 'all' parameter is used after player name, adds all champions except the ones given after it.
     :param player: name of player
     :param champs: champions to add for the player, champs[0] is checked for all-parameter
@@ -221,7 +222,7 @@ async def reset_champions(ctx, player):
 
 @bot.command(name='source', aliases=['github', 'code'])
 async def source_code(ctx):
-    await ctx.send(f"moi")
+    await ctx.send(GITHUB_URL)
 
 def database_line(aliases, champs):
     """
