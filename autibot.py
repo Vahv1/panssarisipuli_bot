@@ -28,7 +28,11 @@ ARPE_LAUSAHDUKSET = ["Joo swainilla eniten damagee",
                      "Saska, vitun pönttöpää saatana",
                      "Identivoidun naiseksi",
                      "Eiks koirat raksuta",
-                     "Parempi raita pöntössä kun kaks housuissa"]
+                     "Parempi raita pöntössä kun kaks housuissa",
+                     "Jos kaikki on harmaata paskaa niin siitä on vaikee löytää puhasta kultaa",
+                     "Gk fjk äHMg",
+                     "http://keskustelu.suomi24.fi/t/12436852/haemme-suomalaisia-pelaajia-wot-klaaniin-(psop-panssarisopulit)",
+                     "kyllä, se oli suomiopillisesti ihan täydellisesti sanottu"]
 HELP_STRINGS = {"aram": f"""Makes aram teams with given (2 or more) players
                             **Usage:** +aram [rolls] player...""",
                 "rematch": f"""Makes new aram game with same players
@@ -64,6 +68,7 @@ open(PLAYER_CHAMP_DB_FILE, "w+") # create player champ db if doesn't exist
 
 @bot.command(name='addchampions', aliases=['addchamps', 'addchamp', 'addchampion'])
 async def add_champs(ctx, player, *champs):
+    # TODO varmaan pystyy lisään duplikaattichamppeja atm
     """
     Add champions for a player.
     If 'all' parameter is used after player name, adds all champions except the ones given after it.
@@ -408,6 +413,24 @@ def set_player_champions(player, champs):
     database.writelines(lines)
     
 ####  USELESS COMMANDS ####
+
+@bot.command(name='tuopallo')
+async def teuvo(ctx):
+    embed = discord.Embed(title="Vuh vuh!", 
+                          description="",
+                          colour=discord.Colour(0x42DDE5))
+    embed.set_image(url="https://i.imgur.com/p7XJJVO.png")
+    await ctx.send(embed=embed, delete_after=10)
+    
+
+@bot.command(name='topugetir')
+async def teuvo(ctx):
+    embed = discord.Embed(title="Hav hav", 
+                          description="",
+                          colour=discord.Colour(0x42DDE5))
+    embed.set_image(url="https://i.imgur.com/stM57mG.png")
+    await ctx.send(embed=embed, delete_after=10)
+    
     
 @bot.command(name='arpe', aliases=['pepega', 'fourpette', 'itsyourtime', 'swain'])
 async def arpe(ctx):
