@@ -420,7 +420,7 @@ async def teuvo(ctx):
     embed = discord.Embed(title="Vuh vuh!", 
                           description="",
                           colour=discord.Colour(0x42DDE5))
-    embed.set_image(url="https://i.imgur.com/p7XJJVO.png")
+    embed.set_image(url="https://i.imgur.com/ycU1qF4.png")
     await ctx.send(embed=embed)
     
 
@@ -429,7 +429,7 @@ async def teuvo(ctx):
     embed = discord.Embed(title="Hav hav!", 
                           description="",
                           colour=discord.Colour(0x42DDE5))
-    embed.set_image(url="https://i.imgur.com/stM57mG.png")
+    embed.set_image(url="https://i.imgur.com/iAfRLeT.png")
     await ctx.send(embed=embed)
     
 @bot.command(name='silitäväinöä')
