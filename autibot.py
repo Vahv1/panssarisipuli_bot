@@ -42,6 +42,7 @@ HELP_STRINGS = {"aram": f"""Makes aram teams with given (2 or more) players
                 }
 GITHUB_URL = "https://github.com/Vahv1/panssarisipuli_bot"
 REMATCH_ALIASES = ["paraskolmesta", "parasviiestä", "parasseittemästä", "paraskolmestatoista"]
+VAINO_URLS = ["https://i.imgur.com/Jk2GhQh.jpeg", "https://i.imgur.com/VkhvTLL.jpeg"]
 
 client = discord.Client()
 bot = commands.Bot(command_prefix='+')
@@ -420,16 +421,24 @@ async def teuvo(ctx):
                           description="",
                           colour=discord.Colour(0x42DDE5))
     embed.set_image(url="https://i.imgur.com/p7XJJVO.png")
-    await ctx.send(embed=embed, delete_after=10)
+    await ctx.send(embed=embed)
     
 
 @bot.command(name='topugetir')
 async def teuvo(ctx):
-    embed = discord.Embed(title="Hav hav", 
+    embed = discord.Embed(title="Hav hav!", 
                           description="",
                           colour=discord.Colour(0x42DDE5))
     embed.set_image(url="https://i.imgur.com/stM57mG.png")
-    await ctx.send(embed=embed, delete_after=10)
+    await ctx.send(embed=embed)
+    
+@bot.command(name='silitäväinöä')
+async def teuvo(ctx):
+    embed = discord.Embed(title="Mau", 
+                          description="",
+                          colour=discord.Colour(0x42DDE5))
+    embed.set_image(url=random.choice(VAINO_URLS))
+    await ctx.send(embed=embed)
     
     
 @bot.command(name='arpe', aliases=['pepega', 'fourpette', 'itsyourtime', 'swain'])
