@@ -462,7 +462,7 @@ async def golf(ctx):
             # Add all coordinates above wanted threshold to invalid_coords list
             for splitti in line_split:
                 try:
-                    if abs(float(splitti)) > 250:
+                    if abs(float(splitti)) > 300:
                         invalid_coords.append(splitti)
                 except ValueError:
                     pass
