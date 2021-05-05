@@ -1,5 +1,6 @@
 import discord
 import os
+import re
 import fileinput
 import random
 from discord.ext import commands
@@ -440,6 +441,37 @@ async def teuvo(ctx):
     embed.set_image(url=random.choice(VAINO_URLS))
     await ctx.send(embed=embed)
     
+@bot.command(name='golf', aliases=['golffi'])
+async def golf(ctx):
+    if len(ctx.message.attachments) > 0:
+        att = ctx.message.attachments[0] # Only check for first attachment
+        att_name = att.filename
+        
+        # Check correct file extension
+        if att_name.endswith(".txt"):
+        
+            # Save attachment if it was .txt
+            save_file_name = "golfmap.txt"
+            await att.save(fp=save_file_name)
+
+            # read file to a string and split from : and , to get coordinates as list elements
+            map_text = open("golfmap.txt", "r").read()
+            line_split = re.split(':|,', map_text)
+            
+            invalid_coords = []
+            # Add all coordinates above wanted threshold to invalid_coords list
+            for splitti in line_split:
+                try:
+                    if abs(float(splitti)) > 250:
+                        invalid_coords.append(splitti)
+                except ValueError:
+                    pass
+            
+            # Send invalid coordinates as message
+            coord_message = " ".join(invalid_coords)
+            await ctx.send(coord_message)
+    else:
+        await ctx.send("Laita .txt tiedosto mukaan")
     
 @bot.command(name='arpe', aliases=['pepega', 'fourpette', 'itsyourtime', 'swain'])
 async def arpe(ctx):
