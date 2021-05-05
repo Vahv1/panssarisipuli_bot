@@ -470,6 +470,8 @@ async def golf(ctx):
             # Send invalid coordinates as message
             coord_message = " ".join(invalid_coords)
             await ctx.send(coord_message)
+        else:
+            await ctx.send("Liite pitää olla .txt")
     else:
         await ctx.send("Laita .txt tiedosto mukaan")
     
